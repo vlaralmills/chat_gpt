@@ -1,0 +1,159 @@
+﻿<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 50%;
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 10px;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .user-message {
+            background: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 10px;
+            margin: 5px 0;
+            display: inline-block;
+            max-width: 80%;
+        }
+
+        .bot-message {
+            background: #ddd;
+            color: black;
+            padding: 8px 12px;
+            border-radius: 10px;
+            margin: 5px 0;
+            display: inline-block;
+            max-width: 80%;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background: #0056b3;
+            }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>Chatbot</h2>
+        <div class="messages" id="messages"></div>
+        <input type="text" id="user-input" placeholder="Πληκτρολόγησε το μήνυμά σου...">
+        <button onclick="sendMessage()">Αποστολή</button>
+    </div>
+
+    <script>
+        // 🔹 Ανακτά το user_id από το Local Storage
+        let userId = localStorage.getItem("user_id");
+        if (!userId) {
+            userId = "user_" + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem("user_id", userId);
+        }
+
+        // 🔹 Φόρτωση ιστορικού συνομιλιών όταν ανοίγει η σελίδα
+        async function loadChatHistory() {
+            const messagesDiv = document.getElementById("messages");
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/history/${userId}`);
+                const history = await response.json();
+
+                messagesDiv.innerHTML = ""; // Καθαρίζουμε το div πριν φορτώσουμε το ιστορικό
+
+                history.reverse().forEach(chat => {
+                    const userMessage = document.createElement("div");
+                    userMessage.classList.add("user-message");
+                    userMessage.textContent = chat.user;
+                    messagesDiv.appendChild(userMessage);
+
+                    const botMessage = document.createElement("div");
+                    botMessage.classList.add("bot-message");
+                    botMessage.textContent = chat.bot;
+                    messagesDiv.appendChild(botMessage);
+                });
+
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (error) {
+                console.error("Σφάλμα φόρτωσης ιστορικού:", error);
+            }
+        }
+
+        // 🔹 Κλήση της συνάρτησης για φόρτωση ιστορικού μόλις ανοίξει η σελίδα
+        window.onload = loadChatHistory;
+
+        // 🔹 Η λειτουργία αποστολής μηνυμάτων παραμένει ίδια
+        async function sendMessage() {
+            const userInput = document.getElementById("user-input").value.trim();
+            const messagesDiv = document.getElementById("messages");
+
+            if (userInput === "") return;
+
+            // ✅ Εμφάνιση μηνύματος χρήστη
+            const userMessage = document.createElement("div");
+            userMessage.classList.add("user-message");
+            userMessage.textContent = userInput;
+            messagesDiv.appendChild(userMessage);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            document.getElementById("user-input").value = "";
+
+            try {
+                // 🔹 Στέλνουμε το μήνυμα στο Flask API (το ιστορικό αποθηκεύεται στη βάση)
+                const response = await fetch("http://127.0.0.1:5000/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: userId, message: userInput })
+                });
+
+                const data = await response.json();
+                const botMessage = document.createElement("div");
+                botMessage.classList.add("bot-message");
+                botMessage.textContent = data.response || "⚠️ Σφάλμα στον server!";
+                messagesDiv.appendChild(botMessage);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (error) {
+                console.error("Σφάλμα:", error);
+            }
+        }
+
+    </script>
+
+</body>
+</html>
