@@ -92,7 +92,7 @@
             const messagesDiv = document.getElementById("messages");
 
             try {
-                const response = await fetch(`http://127.0.0.1:5000/history/${userId}`);
+                const response = await fetch(`https://chat-gpt-c9pz.onrender.com/history/${userId}`);
                 const history = await response.json();
 
                 messagesDiv.innerHTML = ""; // Καθαρίζουμε το div πριν φορτώσουμε το ιστορικό
