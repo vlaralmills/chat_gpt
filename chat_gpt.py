@@ -50,6 +50,12 @@ def chat():
         # ✅ Φόρτωση προηγούμενων συνομιλιών του χρήστη
         cursor.execute("SELECT user_message, bot_response FROM conversations WHERE user_id = ? ORDER BY timestamp ASC", (user_id,))
         history = cursor.fetchall()
+        # ✅ Έλεγχος αν η βάση περιέχει δεδομένα
+        cursor.execute("SELECT COUNT(*) FROM conversations")
+        total_chats = cursor.fetchone()[0]
+        print(f"📌 Συνολικές συνομιλίες στη βάση: {total_chats}")
+
+
 
         # Μετατροπή ιστορικού σε OpenAI format
         messages = [{"role": "system", "content": "Είσαι ένας βοηθητικός και φιλικός chatbot."}]
