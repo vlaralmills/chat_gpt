@@ -1,8 +1,10 @@
-flask
+Flask[async]
 flask-cors
 openai
 gunicorn
 python-telegram-bot==20.3
+
+
 
 
 
