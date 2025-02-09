@@ -138,6 +138,7 @@ async def handle_telegram_message(update: Update, context):
 # ✅ Συνάρτηση για επικοινωνία με OpenAI (ασύγχρονα)
 async def chat_async(user_input, user_id):
     try:
+        print("⏳ Στέλνω μήνυμα στο OpenAI API...")  # ✅ Debug log
         response = await asyncio.to_thread(client.chat.completions.create,  # ✅ Εκτελεί το API call σε άλλο thread
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": user_input}],
@@ -145,7 +146,7 @@ async def chat_async(user_input, user_id):
             temperature=0.7
         )
         bot_reply = response.choices[0].message.content.strip()
-
+        print(f"🤖 OpenAI API Response: {bot_reply}")  # ✅ Debug log
         # ✅ Αποθήκευση συνομιλίας
         cursor.execute("INSERT INTO conversations (user_id, user_message, bot_response) VALUES (?, ?, ?)",
                        (user_id, user_input, bot_reply))
@@ -153,6 +154,7 @@ async def chat_async(user_input, user_id):
 
         return bot_reply
     except Exception as e:
+        print(f"❌ Σφάλμα OpenAI API: {e}")
         return "⚠️ Σφάλμα στον server!"
 
 
