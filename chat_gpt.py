@@ -41,10 +41,10 @@ if not TELEGRAM_BOT_TOKEN:
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ✅ Ρύθμιση Telegram bot (Αρχικοποίηση πριν το Flask)
+# ✅ Ρύθμιση Telegram bot
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: asyncio.run(handle_telegram_message(update, context))))
-application.initialize()  # ✅ Εξασφαλίζει ότι το bot θα λειτουργήσει σωστά
+application.initialize()  # ✅ Σωστή αρχικοποίηση
 
 @app.route("/", methods=["GET"])
 def home():
@@ -94,7 +94,7 @@ def get_history(user_id):
 
 # ✅ Webhook για το Telegram bot
 @app.route("/telegram", methods=["POST"])
-def telegram_webhook():
+async def telegram_webhook():
     update_json = request.get_json()
     print("📩 Λήφθηκε μήνυμα από το Telegram:", update_json)
 
@@ -103,7 +103,7 @@ def telegram_webhook():
         print("✅ Update αντικείμενο δημιουργήθηκε:", update)
 
         # ✅ Εκτέλεση του process_update σωστά
-        asyncio.run(application.process_update(update))
+        await application.process_update(update)
 
         print("✅ Το μήνυμα επεξεργάστηκε επιτυχώς!")
     except Exception as e:
@@ -162,7 +162,6 @@ def set_telegram_webhook():
 # Εκκίνηση του Flask API και του Webhook του Telegram bot
 if __name__ == "__main__":
     set_telegram_webhook()  # ✅ Ρύθμιση του Webhook κατά την εκκίνηση
-    application.run_polling()  # ✅ Εκκίνηση bot polling
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
 
