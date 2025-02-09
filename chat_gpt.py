@@ -107,7 +107,7 @@ def get_history(user_id):
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # Συνάρτηση που διαχειρίζεται τα μηνύματα στο Telegram
-def handle_telegram_message(update: Update, context: CallbackContext):
+def handle_telegram_message(update: Update, context):
     user_message = update.message.text
     user_id = str(update.message.chat_id)
 
