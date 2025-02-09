@@ -2,11 +2,11 @@ import openai
 import sqlite3
 import os
 import json
-import asyncio
+import threading
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update, Bot
-from telegram.ext import Application, MessageHandler, filters
+from telegram.ext import Application, MessageHandler, filters, CallbackContext
 
 # Δημιουργία Flask app
 app = Flask(__name__)
@@ -41,10 +41,8 @@ if not TELEGRAM_BOT_TOKEN:
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-# ✅ Ρύθμιση Telegram bot
+# ✅ Σωστή αρχικοποίηση του Telegram `Application`
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: asyncio.run(handle_telegram_message(update, context))))
-application.initialize()  # ✅ Σωστή αρχικοποίηση
 
 @app.route("/", methods=["GET"])
 def home():
@@ -102,8 +100,8 @@ def telegram_webhook():
         update = Update.de_json(update_json, bot)
         print("✅ Update αντικείμενο δημιουργήθηκε:", update)
 
-        # ✅ Τρέχουμε το async process_update() μέσα από asyncio.run()
-        asyncio.run(application.process_update(update))
+        # ✅ Προσθήκη στην ουρά των updates
+        application.update_queue.put(update)
 
         print("✅ Το μήνυμα επεξεργάστηκε επιτυχώς!")
     except Exception as e:
@@ -111,9 +109,8 @@ def telegram_webhook():
 
     return "OK", 200
 
-
 # ✅ Χειρισμός μηνυμάτων από το Telegram
-async def handle_telegram_message(update: Update, context):
+async def handle_telegram_message(update: Update, context: CallbackContext):
     user_message = update.message.text
     user_id = str(update.message.chat_id)
 
@@ -151,7 +148,7 @@ async def chat_async(user_input, user_id):
     except Exception as e:
         return "⚠️ Σφάλμα στον server!"
 
-# ✅ Ρύθμιση του Webhook
+# ✅ Ρύθμιση Telegram bot με Webhook
 def set_telegram_webhook():
     webhook_url = f"https://chat-gpt-c9pz.onrender.com/telegram"
     response = bot.set_webhook(webhook_url)
@@ -160,13 +157,14 @@ def set_telegram_webhook():
     else:
         print("❌ Σφάλμα κατά τη ρύθμιση του Webhook!")
 
+# ✅ Εκκίνηση του Telegram bot σε ξεχωριστό thread
+def run_telegram_bot():
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_telegram_message))
+    print("🚀 Το Telegram bot ξεκίνησε!")
+    application.run_polling()
+
 # Εκκίνηση του Flask API και του Webhook του Telegram bot
 if __name__ == "__main__":
     set_telegram_webhook()  # ✅ Ρύθμιση του Webhook κατά την εκκίνηση
+    threading.Thread(target=run_telegram_bot, daemon=True).start()  # 🔹 Εκκίνηση του Telegram bot σε νέο thread
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
-
-
-
-
-
-
