@@ -5,7 +5,7 @@ import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update, Bot
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from threading import Thread
 
 # Δημιουργία Flask app
@@ -138,14 +138,10 @@ def chat(user_input, user_id):
 
 # Ρύθμιση του Telegram bot
 def setup_telegram_bot():
-    updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_telegram_message))
+    application.run_polling()  # ✅ Αυτό αντικαθιστά το `updater.start_polling()` και `updater.idle()`
 
-    # Προσθήκη handler για μηνύματα
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_telegram_message))
-
-    updater.start_polling()
-    updater.idle()
 
 # Εκκίνηση του Flask API και του Telegram bot
 if __name__ == "__main__":
