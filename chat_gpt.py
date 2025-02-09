@@ -88,7 +88,7 @@ def get_history(user_id):
 
 # ✅ Webhook για το Telegram bot
 @app.route("/telegram", methods=["POST"])
-def telegram_webhook():
+async def telegram_webhook():
     update_json = request.get_json()
     print("📩 Λήφθηκε μήνυμα από το Telegram:", update_json)
 
@@ -96,14 +96,15 @@ def telegram_webhook():
         update = Update.de_json(update_json, bot)
         print("✅ Update αντικείμενο δημιουργήθηκε:", update)
 
-        import asyncio
-        asyncio.run(application.process_update(update))
+        # ✅ Εκτέλεση του process_update σωστά μέσα από το run_async()
+        await application.process_update(update)
 
         print("✅ Το μήνυμα επεξεργάστηκε επιτυχώς!")
     except Exception as e:
         print("❌ Σφάλμα στο process_update:", str(e))
 
     return "OK", 200
+
 
 # ✅ Χειρισμός μηνυμάτων από το Telegram
 async def handle_telegram_message(update: Update, context):
@@ -146,6 +147,7 @@ async def chat_async(user_input, user_id):
 
 # ✅ Ρύθμιση Telegram bot με Webhook
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+application.initialize()  # ✅ Σωστή αρχικοποίηση
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_telegram_message))
 
 # ✅ Ρύθμιση του Webhook
