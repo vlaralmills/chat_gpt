@@ -6,7 +6,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from threading import Thread
 
 # Δημιουργία Flask app
 app = Flask(__name__)
@@ -39,6 +38,7 @@ if not TELEGRAM_BOT_TOKEN:
 
 # Δημιουργία OpenAI client
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 @app.route("/", methods=["GET"])
 def home():
@@ -57,11 +57,6 @@ def chat():
         # ✅ Φόρτωση προηγούμενων συνομιλιών του χρήστη
         cursor.execute("SELECT user_message, bot_response FROM conversations WHERE user_id = ? ORDER BY timestamp ASC", (user_id,))
         history = cursor.fetchall()
-
-        # ✅ Έλεγχος αν η βάση περιέχει δεδομένα
-        cursor.execute("SELECT COUNT(*) FROM conversations")
-        total_chats = cursor.fetchone()[0]
-        print(f"📌 Συνολικές συνομιλίες στη βάση: {total_chats}")
 
         # Μετατροπή ιστορικού σε OpenAI format
         messages = [{"role": "system", "content": "Είσαι ένας βοηθητικός και φιλικός chatbot."}]
@@ -103,24 +98,28 @@ def get_history(user_id):
         mimetype="application/json"
     )
 
-# ✅ Ρύθμιση Telegram bot
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+# ✅ Webhook για το Telegram bot
+@app.route("/telegram", methods=["POST"])
+def telegram_webhook():
+    update = Update.de_json(request.get_json(), bot)
+    application.process_update(update)
+    return "OK", 200
 
-# Συνάρτηση που διαχειρίζεται τα μηνύματα στο Telegram
-def handle_telegram_message(update: Update, context):
+# ✅ Χειρισμός μηνυμάτων από το Telegram
+async def handle_telegram_message(update: Update, context):
     user_message = update.message.text
     user_id = str(update.message.chat_id)
 
     # ✅ Κλήση GPT για απάντηση
-    response_text = chat(user_message, user_id)
+    response_text = await chat_async(user_message, user_id)
 
     # ✅ Αποστολή απάντησης στον χρήστη
-    update.message.reply_text(response_text)
+    await update.message.reply_text(response_text)
 
-# Συνάρτηση για επικοινωνία με το OpenAI μέσω του Telegram
-def chat(user_input, user_id):
+# ✅ Συνάρτηση για επικοινωνία με OpenAI (ασύγχρονα)
+async def chat_async(user_input, user_id):
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": user_input}],
             max_tokens=150,
@@ -136,15 +135,22 @@ def chat(user_input, user_id):
     except Exception as e:
         return "⚠️ Σφάλμα στον server!"
 
-# Ρύθμιση του Telegram bot
-def setup_telegram_bot():
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_telegram_message))
-    application.run_polling()  # ✅ Αυτό αντικαθιστά το `updater.start_polling()` και `updater.idle()`
+# ✅ Ρύθμιση Telegram bot με Webhook
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_telegram_message))
 
+# ✅ Ρύθμιση του Webhook
+def set_telegram_webhook():
+    webhook_url = f"https://chat-gpt-c9pz.onrender.com/telegram"
+    response = bot.set_webhook(webhook_url)
+    if response:
+        print("✅ Webhook ρυθμίστηκε σωστά:", webhook_url)
+    else:
+        print("❌ Σφάλμα κατά τη ρύθμιση του Webhook!")
 
-# Εκκίνηση του Flask API και του Telegram bot
+# Εκκίνηση του Flask API και του Webhook του Telegram bot
 if __name__ == "__main__":
-    Thread(target=setup_telegram_bot).start()  # Εκκίνηση του Telegram bot σε ξεχωριστό thread
+    set_telegram_webhook()  # ✅ Ρύθμιση του Webhook κατά την εκκίνηση
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
 
