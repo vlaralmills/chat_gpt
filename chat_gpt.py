@@ -2,7 +2,6 @@ import openai
 import sqlite3
 import os
 import json
-import threading
 import asyncio  # ✅ Προσθήκη για async λειτουργίες
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -146,6 +145,7 @@ async def chat_async(user_input, user_id):
                                            temperature=0.7)
         bot_reply = response.choices[0].message.content.strip()
         print(f"🤖 OpenAI API Response: {bot_reply}")  # ✅ Debug log
+
         # ✅ Αποθήκευση συνομιλίας
         cursor.execute("INSERT INTO conversations (user_id, user_message, bot_response) VALUES (?, ?, ?)",
                        (user_id, user_input, bot_reply))
@@ -167,15 +167,21 @@ async def set_telegram_webhook():
         print("❌ Σφάλμα κατά τη ρύθμιση του Webhook!")
 
 
-# ✅ Εκκίνηση του Telegram bot σε ξεχωριστό thread
-def run_telegram_bot():
+# ✅ Εκκίνηση του Telegram bot μέσα σε asyncio event loop
+async def run_telegram_bot():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_telegram_message))
     print("🚀 Το Telegram bot ξεκίνησε!")
-    application.run_polling()
+    await application.run_polling()
 
 
-# Εκκίνηση του Flask API και του Webhook του Telegram bot
+# ✅ Εκκίνηση του Flask API και του Telegram bot μαζί
+async def main():
+    await set_telegram_webhook()  # ✅ Ρύθμιση του Webhook
+    task1 = asyncio.create_task(run_telegram_bot())  # ✅ Εκκίνηση του Telegram bot
+    task2 = asyncio.to_thread(app.run, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))  # ✅ Εκκίνηση Flask
+    await asyncio.gather(task1, task2)  # ✅ Τρέχουν και τα δύο παράλληλα
+
+
+# ✅ Κύρια εκκίνηση του προγράμματος
 if __name__ == "__main__":
-    asyncio.run(set_telegram_webhook())  # ✅ Σωστή εκτέλεση async Webhook
-    threading.Thread(target=run_telegram_bot, daemon=True).start()  # ✅ Εκκίνηση του Telegram bot
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    asyncio.run(main())  # ✅ Όλα εκκινούνται μέσα σε ένα event loop
