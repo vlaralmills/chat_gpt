@@ -30,7 +30,7 @@ conn.commit()
 
 # ✅ Ανάκτηση των API Keys από τις μεταβλητές περιβάλλοντος
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Το API Token του Telegram bot
 
 if not OPENAI_API_KEY:
     raise ValueError("🚨 Το OpenAI API Key δεν έχει οριστεί!")
@@ -40,6 +40,11 @@ if not TELEGRAM_BOT_TOKEN:
 # Δημιουργία OpenAI client
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
+
+# ✅ Ρύθμιση Telegram bot (Αρχικοποίηση πριν το Flask)
+application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: asyncio.run(handle_telegram_message(update, context))))
+application.initialize()  # ✅ Εξασφαλίζει ότι το bot θα λειτουργήσει σωστά
 
 @app.route("/", methods=["GET"])
 def home():
@@ -55,6 +60,7 @@ def chat():
         return jsonify({"error": "No input provided"}), 400
 
     try:
+        # ✅ Κλήση GPT για απάντηση
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": user_input}],
@@ -63,6 +69,7 @@ def chat():
         )
         bot_reply = response.choices[0].message.content.strip()
 
+        # ✅ Αποθήκευση συνομιλίας
         cursor.execute("INSERT INTO conversations (user_id, user_message, bot_response) VALUES (?, ?, ?)",
                        (user_id, user_input, bot_reply))
         conn.commit()
@@ -71,44 +78,59 @@ def chat():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# API για προβολή συνομιλιών συγκεκριμένου χρήστη
 @app.route("/history/<user_id>", methods=["GET"])
 def get_history(user_id):
     cursor.execute("SELECT user_message, bot_response, timestamp FROM conversations WHERE user_id = ? ORDER BY timestamp DESC", (user_id,))
     chats = cursor.fetchall()
+
     chat_list = [{"user": row[0], "bot": row[1], "timestamp": row[2]} for row in chats]
+
     return app.response_class(
         response=json.dumps(chat_list, ensure_ascii=False, indent=4),
         status=200,
         mimetype="application/json"
     )
 
+# ✅ Webhook για το Telegram bot
 @app.route("/telegram", methods=["POST"])
 def telegram_webhook():
     update_json = request.get_json()
     print("📩 Λήφθηκε μήνυμα από το Telegram:", update_json)
-    
+
     try:
         update = Update.de_json(update_json, bot)
         print("✅ Update αντικείμενο δημιουργήθηκε:", update)
-        asyncio.run(application.process_update(update))  # ✅ Χρήση asyncio.run για async εκτέλεση
+
+        # ✅ Εκτέλεση του process_update σωστά
+        asyncio.run(application.process_update(update))
+
         print("✅ Το μήνυμα επεξεργάστηκε επιτυχώς!")
     except Exception as e:
         print("❌ Σφάλμα στο process_update:", str(e))
 
     return "OK", 200
 
+# ✅ Χειρισμός μηνυμάτων από το Telegram
 async def handle_telegram_message(update: Update, context):
     user_message = update.message.text
     user_id = str(update.message.chat_id)
-    print(f"📩 Το bot έλαβε μήνυμα: {user_message} από {user_id}")
+
+    print(f"📩 Το bot έλαβε μήνυμα: {user_message} από {user_id}")  # ✅ Debug log
+
+    # ✅ Κλήση GPT για απάντηση
     response_text = await chat_async(user_message, user_id)
-    print(f"🤖 Απάντηση chatbot: {response_text}")
+
+    print(f"🤖 Απάντηση chatbot: {response_text}")  # ✅ Debug log
+
+    # ✅ Αποστολή απάντησης στον χρήστη
     try:
         await update.message.reply_text(response_text)
         print("✅ Το μήνυμα απεστάλη επιτυχώς στο Telegram!")
     except Exception as e:
         print(f"❌ Σφάλμα κατά την αποστολή απάντησης: {e}")
 
+# ✅ Συνάρτηση για επικοινωνία με OpenAI (ασύγχρονα)
 async def chat_async(user_input, user_id):
     try:
         response = await client.chat.completions.create(
@@ -118,28 +140,31 @@ async def chat_async(user_input, user_id):
             temperature=0.7
         )
         bot_reply = response.choices[0].message.content.strip()
+
+        # ✅ Αποθήκευση συνομιλίας
         cursor.execute("INSERT INTO conversations (user_id, user_message, bot_response) VALUES (?, ?, ?)",
                        (user_id, user_input, bot_reply))
         conn.commit()
+
         return bot_reply
     except Exception as e:
         return "⚠️ Σφάλμα στον server!"
 
-application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-application.initialize()
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_telegram_message))
-
+# ✅ Ρύθμιση του Webhook
 def set_telegram_webhook():
-    webhook_url = "https://chat-gpt-c9pz.onrender.com/telegram"
+    webhook_url = f"https://chat-gpt-c9pz.onrender.com/telegram"
     response = bot.set_webhook(webhook_url)
     if response:
         print("✅ Webhook ρυθμίστηκε σωστά:", webhook_url)
     else:
         print("❌ Σφάλμα κατά τη ρύθμιση του Webhook!")
 
+# Εκκίνηση του Flask API και του Webhook του Telegram bot
 if __name__ == "__main__":
-    set_telegram_webhook()
+    set_telegram_webhook()  # ✅ Ρύθμιση του Webhook κατά την εκκίνηση
+    application.run_polling()  # ✅ Εκκίνηση bot polling
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
 
 
 
