@@ -92,7 +92,7 @@ def get_history(user_id):
 
 # ✅ Webhook για το Telegram bot
 @app.route("/telegram", methods=["POST"])
-async def telegram_webhook():
+def telegram_webhook():
     update_json = request.get_json()
     print("📩 Λήφθηκε μήνυμα από το Telegram:", update_json)
 
@@ -111,7 +111,7 @@ async def telegram_webhook():
 
 
 # ✅ Χειρισμός μηνυμάτων από το Telegram
-async def handle_telegram_message(update: Update, context: CallbackContext):
+async def handle_telegram_message(update: Update, context):
     user_message = update.message.text
     user_id = str(update.message.chat_id)
 
