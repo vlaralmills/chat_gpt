@@ -95,7 +95,10 @@ def telegram_webhook():
     try:
         update = Update.de_json(update_json, bot)
         print("✅ Update αντικείμενο δημιουργήθηκε:", update)
-        application.process_update(update)
+
+        import asyncio
+        asyncio.run(application.process_update(update))
+
         print("✅ Το μήνυμα επεξεργάστηκε επιτυχώς!")
     except Exception as e:
         print("❌ Σφάλμα στο process_update:", str(e))
