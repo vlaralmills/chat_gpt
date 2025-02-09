@@ -97,7 +97,7 @@ def get_history(user_id):
 
 # ✅ Webhook για το Telegram bot (Συμβατό με Flask)
 @app.route("/telegram", methods=["POST"])
-def telegram_webhook():
+async def telegram_webhook():
     update_json = request.get_json()
     print("📩 Λήφθηκε μήνυμα από το Telegram:", update_json)
 
@@ -105,8 +105,8 @@ def telegram_webhook():
         update = Update.de_json(update_json, bot)
         print("✅ Update αντικείμενο δημιουργήθηκε:", update)
 
-        # ✅ Χρήση asyncio.run() αντί για await εκτός async function
-        asyncio.run(application.update_queue.put(update))
+        # ✅ Σωστή χρήση await μέσα σε async function
+        await application.update_queue.put(update)
 
         print("✅ Το μήνυμα επεξεργάστηκε επιτυχώς!")
     except Exception as e:
@@ -139,12 +139,11 @@ async def handle_telegram_message(update: Update, context):
 async def chat_async(user_input, user_id):
     try:
         print("⏳ Στέλνω μήνυμα στο OpenAI API...")  # ✅ Debug log
-        response = await asyncio.to_thread(client.chat.completions.create,  # ✅ Εκτελεί το API call σε άλλο thread
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": user_input}],
-            max_tokens=150,
-            temperature=0.7
-        )
+        response = await asyncio.to_thread(client.chat.completions.create,
+                                           model="gpt-4o-mini",
+                                           messages=[{"role": "user", "content": user_input}],
+                                           max_tokens=150,
+                                           temperature=0.7)
         bot_reply = response.choices[0].message.content.strip()
         print(f"🤖 OpenAI API Response: {bot_reply}")  # ✅ Debug log
         # ✅ Αποθήκευση συνομιλίας
@@ -159,11 +158,11 @@ async def chat_async(user_input, user_id):
 
 
 # ✅ Ρύθμιση Telegram bot με Webhook
-def set_telegram_webhook():
-    webhook_url = f"https://chat-gpt-c9pz.onrender.com/telegram"
-    response = bot.set_webhook(webhook_url)
+async def set_telegram_webhook():
+    webhook_url = "https://chat-gpt-c9pz.onrender.com/telegram"
+    response = await bot.set_webhook(webhook_url)
     if response:
-        print("✅ Webhook ρυθμίστηκε σωστά:", webhook_url)
+        print(f"✅ Webhook ρυθμίστηκε σωστά: {webhook_url}")
     else:
         print("❌ Σφάλμα κατά τη ρύθμιση του Webhook!")
 
@@ -177,6 +176,6 @@ def run_telegram_bot():
 
 # Εκκίνηση του Flask API και του Webhook του Telegram bot
 if __name__ == "__main__":
-    set_telegram_webhook()  # ✅ Ρύθμιση του Webhook κατά την εκκίνηση
-    threading.Thread(target=run_telegram_bot, daemon=True).start()  # 🔹 Εκκίνηση του Telegram bot σε νέο thread
+    asyncio.run(set_telegram_webhook())  # ✅ Σωστή εκτέλεση async Webhook
+    threading.Thread(target=run_telegram_bot, daemon=True).start()  # ✅ Εκκίνηση του Telegram bot
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
