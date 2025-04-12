@@ -2,7 +2,7 @@ import openai
 import sqlite3
 import os
 import json
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify,render_template
 from flask_cors import CORS
 from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, CommandHandler
@@ -86,7 +86,7 @@ async def telegram_webhook():
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"index.html"})
+    return render_template("index.html")
 
 @app.route("/favicon.ico", methods=["GET"])
 def favicon():
