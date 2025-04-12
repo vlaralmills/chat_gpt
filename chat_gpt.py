@@ -84,6 +84,23 @@ async def telegram_webhook():
         print(f"Webhook error: {e}")
         return "Error", 500
 
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Welcome to my Telegram Chatbot! Interact with it via Telegram."})
+
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    return "", 204
+
+@app.route("/robots.txt", methods=["GET"])
+def robots():
+    return """
+    User-agent: *
+    Disallow: /
+    """, 200
+
+
+
 @app.route("/chat", methods=["POST"])
 async def chat():
     try:
