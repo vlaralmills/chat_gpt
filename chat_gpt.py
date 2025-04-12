@@ -86,7 +86,7 @@ async def telegram_webhook():
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "Welcome to my Telegram Chatbot! Interact with it via Telegram."})
+    return jsonify({"index.html"})
 
 @app.route("/favicon.ico", methods=["GET"])
 def favicon():
