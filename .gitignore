@@ -1,0 +1,12 @@
+"chatbot.db" 
+*.db 
+*.pdf 
+__pycache__/ 
+chroma_db/ 
+deddie_env/ 
+form_bot_*.py 
+index_*.html 
+app.py 
+chat_gpt_v1.py 
+form_claude_pdf.py 
+DejaVuSans.ttf 
