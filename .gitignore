@@ -5,7 +5,9 @@ __pycache__/
 chroma_db/ 
 deddie_env/ 
 form_bot_*.py 
-index_*.html 
+index_*.html
+!index_with_history.html
+!templates/index_with_history.html 
 app.py 
 chat_gpt_v1.py 
 form_claude_pdf.py 
